@@ -294,6 +294,49 @@ var UTIL = require('../../lib/util');
       ASSERT.ok(certificate.verify(certificate));
     });
 
+    it('encode and decode works', () => {
+      var keys = PKI.rsa.generateKeyPair(2048);
+      var cert = PKI.createCertificate();
+      cert.publicKey = keys.publicKey;
+      cert.serialNumber = '01';
+      cert.validity.notBefore = new Date();
+      cert.validity.notAfter = new Date();
+      cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
+      var attrs = [
+          {
+              name: 'commonName',
+              value: 'test-ca-cert',
+          },
+          {
+              name: 'organizationName',
+              value: 'test-ca-cert',
+          },
+      ];
+      cert.setSubject(attrs);
+      cert.setIssuer(attrs);
+      cert.setExtensions([
+          {
+              name: 'basicConstraints',
+              cA: true,
+          },
+          {
+              name: 'subjectKeyIdentifier',
+          },
+          {
+              name: 'authorityKeyIdentifier',
+          },
+      ]);
+
+      // self-sign certificate
+      cert.sign(keys.privateKey);
+
+      // create ca to popule issuer hash
+      PKI.createCaStore([cert])
+      
+      const copy = PKI.certificateFromPem(PKI.certificateToPem(cert), true);
+      ASSERT.equal(cert.subject.hash, copy.subject.hash)
+    });
+
     it('should generate a certificate with authorityKeyIdentifier extension', function() {
       var keys = {
         privateKey: PKI.privateKeyFromPem(_pem.privateKey),
@@ -332,7 +375,6 @@ var UTIL = require('../../lib/util');
         issuer: attrs,
         isCA: true
       });
-
       // verify certificate encoding/parsing
       var pem = PKI.certificateToPem(cert);
       cert = PKI.certificateFromPem(pem);
